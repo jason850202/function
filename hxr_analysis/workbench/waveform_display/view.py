@@ -3,23 +3,26 @@ from __future__ import annotations
 from typing import List
 
 import pyqtgraph as pg
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
+    QComboBox,
     QHBoxLayout,
     QLabel,
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
     QSplitter,
+    QTabWidget,
     QTableWidget,
     QTableWidgetItem,
+    QTextEdit,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
-    QComboBox,
-    QTextEdit,
 )
 
 from .importers import ImportErrorWithContext, import_files
@@ -57,28 +60,33 @@ class WaveformDisplayWindow(QMainWindow):
         top_row.addStretch(1)
         layout.addLayout(top_row)
 
-        splitter = QSplitter()
-        layout.addWidget(splitter, 1)
+        main_splitter = QSplitter(Qt.Orientation.Horizontal)
+        layout.addWidget(main_splitter, 1)
 
-        # Left: payload tree
-        left_widget = QWidget()
-        left_layout = QVBoxLayout(left_widget)
-        left_layout.addWidget(QLabel("Bundle Browser"))
+        # Left: tabs for bundle browser and plot setup
+        left_container = QWidget()
+        left_container.setMinimumWidth(280)
+        left_layout = QVBoxLayout(left_container)
+        tabs = QTabWidget()
+        left_layout.addWidget(tabs)
+
+        # Bundle browser tab
+        bundle_tab = QWidget()
+        bundle_layout = QVBoxLayout(bundle_tab)
+        bundle_layout.addWidget(QLabel("Bundle Browser"))
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
-        left_layout.addWidget(self.tree, 1)
-        splitter.addWidget(left_widget)
+        bundle_layout.addWidget(self.tree, 1)
+        tabs.addTab(bundle_tab, "Bundle Browser")
 
-        # Right: mapping + plot
-        right_widget = QWidget()
-        right_layout = QVBoxLayout(right_widget)
-
-        # Mapping table + controls
+        # Plot setup tab
+        plot_setup_tab = QWidget()
+        plot_setup_layout = QVBoxLayout(plot_setup_tab)
         self.table = QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels(
             ["Type", "Payload", "X Path", "Y Path", "Value Path", "Style"]
         )
-        right_layout.addWidget(self.table, 2)
+        plot_setup_layout.addWidget(self.table, 1)
 
         map_btn_row = QHBoxLayout()
         self.btn_add_mapping = QPushButton("Add")
@@ -90,18 +98,33 @@ class WaveformDisplayWindow(QMainWindow):
         map_btn_row.addWidget(self.btn_show_plot)
         map_btn_row.addWidget(self.btn_reload_mappings)
         map_btn_row.addStretch(1)
-        right_layout.addLayout(map_btn_row)
+        plot_setup_layout.addLayout(map_btn_row)
+        tabs.addTab(plot_setup_tab, "Plot Setup")
 
-        # Plot and log
+        main_splitter.addWidget(left_container)
+
+        # Right: plot and log
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        plot_splitter = QSplitter(Qt.Orientation.Vertical)
+
         self.plot_widget = pg.PlotWidget()
-        right_layout.addWidget(self.plot_widget, 3)
+        self.plot_widget.setSizePolicy(
+            QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        )
+        plot_splitter.addWidget(self.plot_widget)
+
         self.log_box = QTextEdit()
         self.log_box.setReadOnly(True)
-        right_layout.addWidget(self.log_box, 1)
+        plot_splitter.addWidget(self.log_box)
 
-        splitter.addWidget(right_widget)
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 2)
+        plot_splitter.setStretchFactor(0, 3)
+        plot_splitter.setStretchFactor(1, 1)
+        right_layout.addWidget(plot_splitter)
+
+        main_splitter.addWidget(right_widget)
+        main_splitter.setStretchFactor(0, 1)
+        main_splitter.setStretchFactor(1, 3)
 
         # Signals
         self.btn_import.clicked.connect(self.on_import)
