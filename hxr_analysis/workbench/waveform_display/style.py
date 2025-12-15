@@ -66,6 +66,11 @@ def style_to_pen(style_dict: Dict[str, Any]) -> pg.QtGui.QPen:
     elif alpha is not None:
         pen_kwargs["color"] = _build_color(DEFAULT_PEN.color(), alpha)
 
+    # Ensure we always have a visible color even when width/style are provided
+    # without an explicit color override.
+    if "color" not in pen_kwargs:
+        pen_kwargs["color"] = DEFAULT_PEN.color()
+
     if style_dict.get("width") is not None:
         pen_kwargs["width"] = style_dict.get("width")
 
