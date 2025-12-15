@@ -29,6 +29,7 @@ from .importers import ImportErrorWithContext, import_files
 from .mapping import MappingValidationError, PlotMapping, validate_and_resolve
 from .models import PayloadStore
 from .plot import render_mappings
+from .style import parse_style
 
 
 class WaveformDisplayWindow(QMainWindow):
@@ -112,6 +113,7 @@ class WaveformDisplayWindow(QMainWindow):
         self.plot_widget.setSizePolicy(
             QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         )
+        self._configure_plot_widget()
         plot_splitter.addWidget(self.plot_widget)
 
         self.log_box = QTextEdit()
@@ -135,6 +137,15 @@ class WaveformDisplayWindow(QMainWindow):
         self.btn_reload_mappings.clicked.connect(self.refresh_mapping_payloads)
 
         self.refresh_views()
+
+    def _configure_plot_widget(self):
+        self.plot_widget.setBackground("w")
+        axis_bottom = self.plot_widget.getAxis("bottom")
+        axis_left = self.plot_widget.getAxis("left")
+        for axis in (axis_bottom, axis_left):
+            axis.setPen(pg.mkPen("k"))
+            axis.setTextPen(pg.mkPen("k"))
+        self.plot_widget.showGrid(x=True, y=True, alpha=0.2)
 
     # ---------- Payload handling ----------
     def on_import(self):
@@ -241,7 +252,18 @@ class WaveformDisplayWindow(QMainWindow):
         for row in range(self.table.rowCount()):
             try:
                 mapping = self._mapping_from_row(row)
-                resolved_map = validate_and_resolve(mapping, self.store)
+                style_dict = parse_style(mapping.style)
+            except ValueError as exc:
+                QMessageBox.critical(
+                    self,
+                    "Style parse error",
+                    f"Row {row + 1} style error: {exc}\nInput: {mapping.style}",
+                )
+                continue
+            try:
+                resolved_map = validate_and_resolve(
+                    mapping, self.store, style_dict=style_dict
+                )
                 resolved.append(resolved_map)
             except MappingValidationError as exc:
                 errors.append(f"Row {row + 1}: {exc}")

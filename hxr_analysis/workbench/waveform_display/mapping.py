@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
 from .models import Payload, PayloadStore
 from .np_compat import np
 from .path import PathResolutionError, resolve_path
+from .style import parse_style
 
 
 class MappingValidationError(Exception):
@@ -26,9 +26,9 @@ class PlotMapping:
         if not self.style:
             return {}
         try:
-            return json.loads(self.style)
-        except json.JSONDecodeError as exc:
-            raise MappingValidationError(f"Invalid style JSON: {exc}")
+            return parse_style(self.style)
+        except ValueError as exc:
+            raise MappingValidationError(f"Invalid style: {exc}")
 
 
 @dataclass
@@ -43,7 +43,9 @@ class ResolvedMapping:
 SUPPORTED_TYPES = {"curve", "scatter"}
 
 
-def validate_and_resolve(mapping: PlotMapping, store: PayloadStore) -> ResolvedMapping:
+def validate_and_resolve(
+    mapping: PlotMapping, store: PayloadStore, style_dict: Dict[str, Any] | None = None
+) -> ResolvedMapping:
     if mapping.plot_type not in SUPPORTED_TYPES:
         raise MappingValidationError(f"Unsupported plot type: {mapping.plot_type}")
     if not mapping.payload_id:
@@ -75,7 +77,7 @@ def validate_and_resolve(mapping: PlotMapping, store: PayloadStore) -> ResolvedM
             f"X and Y lengths differ ({x_arr.shape[0]} vs {y_arr.shape[0]})"
         )
 
-    style_dict = mapping.style_dict()
+    style_dict = style_dict if style_dict is not None else mapping.style_dict()
     return ResolvedMapping(mapping=mapping, x=x_arr, y=y_arr, value=val_arr, style=style_dict)
 
 

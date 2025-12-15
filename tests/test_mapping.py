@@ -1,4 +1,8 @@
-from hxr_analysis.workbench.waveform_display.mapping import (
+import pytest
+
+pytest.importorskip("pyqtgraph")
+
+from hxr_analysis.workbench.waveform_display.mapping import (  # noqa: E402
     MappingValidationError,
     PlotMapping,
     validate_and_resolve,
@@ -22,11 +26,12 @@ def test_validate_success():
         payload_id="demo",
         x_path="data.time",
         y_path="data.channels.A",
-        style="{\"pen\": \"r\"}",
+        style="{\"color\": \"red\", \"width\": 2}",
     )
     resolved = validate_and_resolve(mapping, store)
     assert resolved.x.shape[0] == resolved.y.shape[0]
-    assert resolved.style["pen"] == "r"
+    assert resolved.style["color"] == "red"
+    assert resolved.style["width"] == 2
 
 
 def test_validate_errors():
