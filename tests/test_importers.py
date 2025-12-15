@@ -6,7 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from hxr_analysis.workbench.waveform_display.importers import ImportErrorWithContext, load_npz_payload
+from hxr_analysis.workbench.waveform_display.importers import (
+    ImportErrorWithContext,
+    load_npz_payload,
+)
 
 
 def _prepare_array(value):
@@ -52,7 +55,7 @@ def test_import_npz_with_t_array(tmp_path: Path):
     assert set(payload["data"]["channels"].keys()) == {"A", "B"}
 
 
-def test_import_picoscope_npz_builds_time(tmp_path: Path):
+def test_import_picoscope_builds_time_and_channels(tmp_path: Path):
     path = tmp_path / "picoscope.npz"
     create_npz(
         path,
@@ -68,6 +71,7 @@ def test_import_picoscope_npz_builds_time(tmp_path: Path):
 
     payload_id, payload = load_npz_payload(path)
     time = list(payload["data"]["time"])
+
     assert payload_id == "picoscope"
     assert time == pytest.approx([0.5, 0.6, 0.7])
     assert set(payload["data"]["channels"].keys()) == {"A", "B"}
@@ -75,7 +79,48 @@ def test_import_picoscope_npz_builds_time(tmp_path: Path):
     assert payload["meta"]["Tinterval"] == pytest.approx(0.1)
 
 
-def test_import_rejects_npz_without_time_info(tmp_path: Path):
+def test_picoscope_length_mismatch_keeps_channels_default(tmp_path: Path):
+    path = tmp_path / "length_mismatch.npz"
+    create_npz(
+        path,
+        {
+            "Tstart": 0.0,
+            "Tinterval": 0.5,
+            "Length": 10,
+            "A": list(range(14)),
+        },
+    )
+
+    _, payload = load_npz_payload(path)
+
+    assert len(payload["data"]["time"]) == 14
+    assert len(payload["data"]["channels"]["A"]) == 14
+    assert payload["meta"]["length_mismatch"] == {
+        "declared": 10,
+        "channels": 14,
+        "chosen": 14,
+    }
+
+
+def test_picoscope_truncate_to_declared_length(tmp_path: Path):
+    path = tmp_path / "truncate.npz"
+    create_npz(
+        path,
+        {
+            "Tstart": 0.0,
+            "Tinterval": 0.5,
+            "Length": 10,
+            "A": list(range(14)),
+        },
+    )
+
+    _, payload = load_npz_payload(path, length_policy="truncate_to_declared")
+
+    assert len(payload["data"]["time"]) == 10
+    assert len(payload["data"]["channels"]["A"]) == 10
+
+
+def test_import_rejects_npz_without_time_information(tmp_path: Path):
     path = tmp_path / "no_time.npz"
     create_npz(path, {"A": [1, 2, 3]})
 
